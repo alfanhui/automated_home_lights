@@ -98,7 +98,7 @@ void loop() {
     }
   } else if (!entered && timeElapsed_door > timeElapsed_pir) {
     int diffBetweenSensors = timeElapsed_door - timeElapsed_pir;
-    if(diffBetweenSensors < ELEVEN){ //Stops random shakes of sensor tripping sensor, or wakes in the night
+    if(diffBetweenSensors < TEN){ //Stops random shakes of sensor tripping sensor, or wakes in the night
       Serial.println("you entered the room");
       entered = true;
       if (lights_on) {
@@ -157,11 +157,16 @@ void button_pressed() {
     digitalWrite(RELAY_MAIN_PIN, LOW);
     digitalWrite(RELAY_LAMP1_PIN, LOW);
     digitalWrite(RELAY_LAMP2_PIN, LOW);
-    delay(1000);
+    delay(2000);
+    entered = false;
+    timeElapsed_afterLeaving = 200000;
+    timeElapsed_door = 1000;
+    timeElapsed_pir = 0;
     lights_on = false;
   } else {
     digitalWrite(RELAY_LAMP1_PIN, HIGH);
     digitalWrite(RELAY_LAMP2_PIN, HIGH);
+    entered = true;
     lights_on = true;
     initalLightStage = false;
   }
