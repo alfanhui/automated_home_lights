@@ -35,9 +35,8 @@ int door_state = 0;
 //deciders
 bool lights_on = false;  //True when lights are on
 bool entered = true;     //True when someone enteres
-bool hasLeft = true;     //True when someone leaves
+bool hasLeft = true;     //True when someone leaves, if not reactivated by motion in room
 bool initalLightStage = false; //True when first light is turned on
-bool hasLeftOnce = false; //True when someone leaves, untrue if motion is detected before lights turn off
 
 //Timelogs
 #define ONE_HALF 90000  //1.5 minutes in milliseconds
@@ -94,7 +93,7 @@ void loop() {
     entered = false;
     if (lights_on) {
       timeElapsed_afterLeaving = 0;
-      hasLeftOnce = true;
+      hasLeft = true;
     }
   } else if (!entered && timeElapsed_door > timeElapsed_pir) {
     int diffBetweenSensors = timeElapsed_door - timeElapsed_pir;
@@ -102,9 +101,8 @@ void loop() {
       Serial.println("you entered the room");
       entered = true;
       if (lights_on) {
-        if (hasLeft) {
-          hasLeft = false;
-        }
+        hasLeft = false;
+        timeElapsed_afterLeaving = 200000;
       } else {
         light_detect_raw = analogRead(LIGHT_DETECT_PIN);  //900 dark, 180 bright
         if (light_detect_raw > 890) {
@@ -129,7 +127,7 @@ void loop() {
   }
 
   //Switches lights off after leaving
-  if (!entered && lights_on && hasLeftOnce && timeElapsed_afterLeaving > TEN) {
+  if (!entered && lights_on && hasLeft && timeElapsed_afterLeaving > TEN) {
     Serial.println("Turning all lights off");
     digitalWrite(RELAY_MAIN_PIN, LOW);
     delay(500);
@@ -137,7 +135,7 @@ void loop() {
     delay(500);
     digitalWrite(RELAY_LAMP2_PIN, LOW);
     initalLightStage = true;
-    hasLeftOnce = false;
+    hasLeft = false;
     lights_on = false;
   }
 }
@@ -145,9 +143,13 @@ void loop() {
 //Is called when motion is detected
 void motion_detected() {
   Serial.println("Motion detected");
-  timeElapsed_pir = 0;
+  Serial.println(timeElapsed_afterLeaving);
+  if(timeElapsed_door < 6000){
+    timeElapsed_pir = 0;
+  }
   if (lights_on && timeElapsed_afterLeaving < TEN) {
-    hasLeftOnce = false;
+    timeElapsed_pir = 0;
+    hasLeft = false;
   }
 }
 
@@ -158,17 +160,20 @@ void button_pressed() {
     digitalWrite(RELAY_LAMP1_PIN, LOW);
     digitalWrite(RELAY_LAMP2_PIN, LOW);
     delay(2000);
+    button_state = HIGH;
     entered = false;
-    timeElapsed_afterLeaving = 200000;
-    timeElapsed_door = 1000;
-    timeElapsed_pir = 0;
+    timeElapsed_afterLeaving = ELEVEN;
+    timeElapsed_door = 7001;
+    timeElapsed_pir = 18000;
     lights_on = false;
   } else {
     digitalWrite(RELAY_LAMP1_PIN, HIGH);
     digitalWrite(RELAY_LAMP2_PIN, HIGH);
     entered = true;
     lights_on = true;
-    initalLightStage = false;
   }
+  initalLightStage = false;
+  hasLeft = false; //we want this false here so the lights do not reactivate through motion instantly.
+  timeElapsed_afterLeaving = 200000;
 }
 
