@@ -41,8 +41,10 @@ bool initalLightStage = false; //True when first light is turned on
 //Timelogs
 #define ONE_HALF 90000  //1.5 minutes in milliseconds
 #define THREE 180000  //3 minutes in milliseconds
+#define NINE 540000 //9 minutes in milliseconds
 #define TEN 600000  //10 minutes in milliseconds
-#define ELEVEN 660000  //10 minutes in milliseconds
+#define ELEVEN 660000  //11 minutes in milliseconds
+#define THIRTEEN 780000 //13 minutes in milliseconds
 elapsedMillis timeElapsed_door = 1000;
 elapsedMillis timeElapsed_pir;
 elapsedMillis timeElapsed_forLampSwitchOver;
@@ -68,6 +70,7 @@ void setup() {
 }
 
 void loop() {
+  //printValues();
   //Check state of button
     if(button_state != digitalRead(BUTTON)){
       button_state = digitalRead(BUTTON);
@@ -97,7 +100,7 @@ void loop() {
     }
   } else if (!entered && timeElapsed_door > timeElapsed_pir) {
     int diffBetweenSensors = timeElapsed_door - timeElapsed_pir;
-    if(diffBetweenSensors < TEN){ //Stops random shakes of sensor tripping sensor, or wakes in the night
+    if(diffBetweenSensors < ELEVEN){ //Stops random shakes of sensor tripping sensor, or wakes in the night
       Serial.println("you entered the room");
       entered = true;
       if (lights_on) {
@@ -140,6 +143,27 @@ void loop() {
   }
 }
 
+void printValues(){
+  //Serial.println("timeElapsed_door : timeElapsed_pir : timeElapsed_forLampSwitchOver : timeElapsed_afterLeaving"); 
+  Serial.print(timeElapsed_door);
+  Serial.print(" : "); 
+  Serial.print(timeElapsed_pir);
+  Serial.print(" : "); 
+  Serial.print(timeElapsed_forLampSwitchOver);
+  Serial.print(" : "); 
+  Serial.print(timeElapsed_afterLeaving);
+  Serial.println();
+  //Serial.println("lights_on : entered : hasLeft : initialLightStage"); 
+  Serial.print(lights_on);
+  Serial.print(" : "); 
+  Serial.print(entered);
+  Serial.print(" : "); 
+  Serial.print(hasLeft);
+  Serial.print(" : "); 
+  Serial.print(initalLightStage);
+  Serial.println();
+}
+
 //Is called when motion is detected
 void motion_detected() {
   Serial.println("Motion detected");
@@ -147,7 +171,11 @@ void motion_detected() {
   if(timeElapsed_door < 6000){
     timeElapsed_pir = 0;
   }
-  if (lights_on && timeElapsed_afterLeaving < TEN) {
+  if(timeElapsed_afterLeaving < THIRTEEN && timeElapsed_afterLeaving > TEN){
+    timeElapsed_pir = 0;
+    hasLeft = false;
+  }
+  if (lights_on) {
     timeElapsed_pir = 0;
     hasLeft = false;
   }
@@ -159,7 +187,7 @@ void button_pressed() {
     digitalWrite(RELAY_MAIN_PIN, LOW);
     digitalWrite(RELAY_LAMP1_PIN, LOW);
     digitalWrite(RELAY_LAMP2_PIN, LOW);
-    delay(2000);
+    //delay(2000);
     button_state = HIGH;
     entered = false;
     timeElapsed_afterLeaving = ELEVEN;
