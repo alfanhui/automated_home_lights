@@ -174,6 +174,7 @@ void motion_detected() {
   if(timeElapsed_afterLeaving < THIRTEEN && timeElapsed_afterLeaving > TEN){
     timeElapsed_pir = 0;
     hasLeft = false;
+    initalLightStage = true;
   }
   if (lights_on) {
     timeElapsed_pir = 0;
@@ -187,7 +188,7 @@ void button_pressed() {
     digitalWrite(RELAY_MAIN_PIN, LOW);
     digitalWrite(RELAY_LAMP1_PIN, LOW);
     digitalWrite(RELAY_LAMP2_PIN, LOW);
-    //delay(2000);
+    delay(2000);
     button_state = HIGH;
     entered = false;
     timeElapsed_afterLeaving = ELEVEN;
