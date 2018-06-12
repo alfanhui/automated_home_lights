@@ -174,7 +174,7 @@ void motion_detected() {
   if(timeElapsed_afterLeaving < THIRTEEN && timeElapsed_afterLeaving > TEN){
     timeElapsed_pir = 0;
     hasLeft = false;
-    initalLightStage = true;
+    initalLightStage = false;
   }
   if (lights_on) {
     timeElapsed_pir = 0;
