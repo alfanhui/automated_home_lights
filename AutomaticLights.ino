@@ -18,11 +18,11 @@
 
 //Pin values
 const int LIGHT_DETECT_PIN = A0;
-const int BUTTON = 11;
-const int PIR_PIN = 2;
-const int DOOR_PIN = 3;
-const int RELAY_MAIN_PIN = 8;
-const int RELAY_LAMP1_PIN = 9;
+const int BUTTON = 12;
+const int PIR_PIN = 3;
+const int DOOR_PIN = 2;
+const int RELAY_MAIN_PIN = 7;
+const int RELAY_LAMP1_PIN = 8;
 const int RELAY_LAMP2_PIN = 10;
 
 
@@ -45,13 +45,14 @@ bool initalLightStage = false; //True when first light is turned on
 #define TEN 600000  //10 minutes in milliseconds
 #define ELEVEN 660000  //11 minutes in milliseconds
 #define THIRTEEN 780000 //13 minutes in milliseconds
+#define TOO_DARK 800 //Photosensor trigger  (900 dark, 180 bright)
 elapsedMillis timeElapsed_door = 1000;
 elapsedMillis timeElapsed_pir;
 elapsedMillis timeElapsed_forLampSwitchOver;
 elapsedMillis timeElapsed_afterLeaving = 200000;
 
 void setup() {
-  //Serial.begin(9600);
+  Serial.begin(9600);
   //PIR
   attachInterrupt(digitalPinToInterrupt(PIR_PIN), motion_detected, RISING);
   //RELAY
@@ -69,7 +70,7 @@ void setup() {
   pinMode(BUTTON, INPUT_PULLUP);
 }
 
-void loop() {
+void loop() {  
   //printValues();
   //Check state of button
     if(button_state != digitalRead(BUTTON)){
@@ -107,10 +108,11 @@ void loop() {
         hasLeft = false;
         timeElapsed_afterLeaving = 200000;
       } else {
-        light_detect_raw = analogRead(LIGHT_DETECT_PIN);  //900 dark, 180 bright
-        if (light_detect_raw > 890) {
+        if (checkIfDarkEnough()) {
+          lights_on = true;
           turnOnMainLighting();
           timeElapsed_forLampSwitchOver = 0;
+          initalLightStage = true;
         }
       }
     }
@@ -123,15 +125,22 @@ void loop() {
 
   //Switches lights off after leaving
   if (!entered && lights_on && hasLeft && timeElapsed_afterLeaving > TEN) {
-    turnOffLighting();
+    turnOffLighting(true);
+    initalLightStage = true;
+    hasLeft = false;
+    lights_on = false;
   }
 }
 
+bool checkIfDarkEnough(){
+  light_detect_raw = analogRead(LIGHT_DETECT_PIN);
+  //Serial.println(light_detect_raw);
+  return (light_detect_raw > TOO_DARK);
+}
+
 void turnOnMainLighting(){
-     //Serial.println("turning on lights");
+     //Serial.println("Turning main lights on");
      digitalWrite(RELAY_MAIN_PIN, HIGH);
-     lights_on = true;
-     initalLightStage = true;
 }
 
 void turnOnChilledLighting(){
@@ -141,35 +150,31 @@ void turnOnChilledLighting(){
     digitalWrite(RELAY_LAMP1_PIN, HIGH);
     delay(500);
     digitalWrite(RELAY_MAIN_PIN, LOW);
-    lights_on = true;
-    initalLightStage = false;
 }
 
-void turnOffLighting(){
+void turnOffLighting(bool slowly){
     //Serial.println("Turning all lights off");
     digitalWrite(RELAY_MAIN_PIN, LOW);
-    delay(500);
+    if(slowly) delay(500);
     digitalWrite(RELAY_LAMP1_PIN, LOW);
-    delay(500);
+    if(slowly) delay(500);
     digitalWrite(RELAY_LAMP2_PIN, LOW);
-    initalLightStage = true;
-    hasLeft = false;
-    lights_on = false;
-    entered = false;
 }
 
 
 //Is called when motion is detected
 void motion_detected() {
-  Serial.println("Motion detected");
-  Serial.println(timeElapsed_afterLeaving);
+  //Serial.println("Motion detected");
   if(timeElapsed_door < 6000){
     timeElapsed_pir = 0;
   }
   if(timeElapsed_afterLeaving < THIRTEEN && timeElapsed_afterLeaving > TEN){
-    timeElapsed_pir = 0;
-    hasLeft = false;
-    turnOnChilledLighting();
+    if(checkIfDarkEnough()){
+      timeElapsed_pir = 0;
+      hasLeft = false;
+      turnOnChilledLighting();
+      lights_on = true;
+    }
   }
   if (lights_on) {
     timeElapsed_pir = 0;
@@ -180,15 +185,18 @@ void motion_detected() {
 void button_pressed() {
   //Serial.println("Button has been pressed");
   if (lights_on) {
-    turnOffLighting();
+    turnOffLighting(false);
     delay(2000); //Delay to give a chance to block sensor turning lights back on.
     button_state = HIGH;
+    entered = false;
     timeElapsed_afterLeaving = ELEVEN;
     timeElapsed_door = 7001;
     timeElapsed_pir = 18000;
+    lights_on = false;
   } else {
     turnOnChilledLighting();
     entered = true;
+    lights_on = true;
   }
   initalLightStage = false;
   hasLeft = false; //we want this false here so the lights do not reactivate through motion instantly.
@@ -197,7 +205,7 @@ void button_pressed() {
 
 
 void printValues(){
-  //Serial.println("timeElapsed_door : timeElapsed_pir : timeElapsed_forLampSwitchOver : timeElapsed_afterLeaving"); 
+  Serial.println("timeElapsed_door : timeElapsed_pir : timeElapsed_forLampSwitchOver : timeElapsed_afterLeaving"); 
   Serial.print(timeElapsed_door);
   Serial.print(" : "); 
   Serial.print(timeElapsed_pir);
@@ -206,7 +214,7 @@ void printValues(){
   Serial.print(" : "); 
   Serial.print(timeElapsed_afterLeaving);
   Serial.println();
-  //Serial.println("lights_on : entered : hasLeft : initialLightStage"); 
+  Serial.println("lights_on : entered : hasLeft : initialLightStage"); 
   Serial.print(lights_on);
   Serial.print(" : "); 
   Serial.print(entered);
@@ -215,5 +223,16 @@ void printValues(){
   Serial.print(" : "); 
   Serial.print(initalLightStage);
   Serial.println();
+  Serial.println("button_state : light_detect_raw : door_state");
+  button_state = digitalRead(BUTTON);
+  light_detect_raw = analogRead(LIGHT_DETECT_PIN);
+  door_state = digitalRead(DOOR_PIN);
+  Serial.print(button_state);
+  Serial.print(" : "); 
+  Serial.print(light_detect_raw);
+  Serial.print(" : "); 
+  Serial.print(door_state); 
+  Serial.println();
 }
+
 
